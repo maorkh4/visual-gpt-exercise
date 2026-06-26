@@ -7,3 +7,4 @@ __pycache__/
 data/mnist/raw/
 data/mnist/*.bin
 data/mnist/meta.pkl
+ckpt.pt
