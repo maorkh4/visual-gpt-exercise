@@ -1,6 +1,7 @@
 import pickle, os
 import numpy as np, torch
 from model import GPTConfig, GPT          # model.py is in this folder -- the SAME transformer, unchanged
+from sample_image import generate
 
 # hyperparameters
 batch_size = 64
@@ -41,7 +42,7 @@ def estimate_loss():
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
-            logits, loss = model(X, Y)
+            _, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
@@ -66,5 +67,4 @@ for iter in range(max_iters):
     optimizer.step()
 
 # generate from the model
-context = torch.zeros((1, 1), dtype=np.uint16)
-print(model.generate(context, max_new_tokens=block_size)[0].tolist())
+generate(model=model, img_h=meta['img_h'], img_w=meta['img_w'])
