@@ -2,7 +2,7 @@ import pickle, os
 import time
 import numpy as np, torch
 from model import GPTConfig, GPT          # model.py is in this folder -- the SAME transformer, unchanged
-from sample_image import generate
+from sample_image import generate_samples
 
 # hyperparameters
 batch_size = 64
@@ -10,6 +10,8 @@ max_iters = 1500
 eval_interval = 150
 eval_iters = 60
 learning_rate = 3e-4
+
+torch.manual_seed(1337)
 
 HERE = os.path.dirname(__file__)
 data_dir = os.path.join(HERE, 'data/mnist')
@@ -23,13 +25,14 @@ train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mod
 val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
 
 # fold each flat stream into (num_images, seq_len) so a row is one whole image
-train_images = np.asarray(train_data).reshape(-1, seq_len)
-val_images = np.asarray(val_data).reshape(-1, seq_len)
+train_images = train_data.reshape(-1, seq_len)
+val_images = val_data.reshape(-1, seq_len)
 
 # meta.pkl gives vocab_size and seq_len
 block_size = seq_len - 1                  # predict pixel t+1 from pixels 0..t
-model = GPT(GPTConfig(block_size=block_size, vocab_size=vocab_size,
-                      n_layer=4, n_head=4, n_embd=128, dropout=0.0, bias=False))
+model_args = dict(block_size=block_size, vocab_size=vocab_size,
+                  n_layer=4, n_head=4, n_embd=128, dropout=0.0, bias=False)
+model = GPT(GPTConfig(**model_args))
 # ... optimizer + training loop: same shape as your char-GPT ...
 
 def get_batch(split):
@@ -76,14 +79,10 @@ for iter in range(max_iters):
 train_secs = time.perf_counter() - train_start
 print(f"training: {int(train_secs) // 60:02d}:{int(train_secs) % 60:02d} total over {max_iters} iters")
 
-# generate from the model
-n_samples = 10
-sample_secs = []
-for i in range(n_samples):
-    print(" " * (meta['img_w'] * 2))
-    t0 = time.perf_counter()
-    generate(model=model, img_h=meta['img_h'], img_w=meta['img_w'])
-    sample_secs.append(time.perf_counter() - t0)
+# save a checkpoint so sample_image.py can draw without retraining
+model_checkpoint = {'model': model.state_dict(), 'model_args': model_args, 'meta': meta}
+torch.save(model_checkpoint, os.path.join(HERE, 'ckpt.pt'))
 
-print(f"sampling: {sum(sample_secs):.1f}s total over {n_samples} samples "
-      f"({sum(sample_secs) / n_samples:.2f}s avg/sample)")
+# generate from the model
+model.eval()
+generate_samples(model=model, img_h=meta['img_h'], img_w=meta['img_w'])
