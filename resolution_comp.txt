@@ -1,0 +1,9 @@
+14x14
+step 1499: train loss 0.1537, val loss 0.1515
+training: 12:03 total over 1500 iters
+sampling: 4.9s total over 10 samples (0.49s avg/sample)
+
+28x28
+step 1499: train loss 0.0895, val loss 0.0894
+training: 54:43 total over 1500 iters
+sampling: 45.1s total over 10 samples (4.51s avg/sample)

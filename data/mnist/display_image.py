@@ -28,7 +28,7 @@ H = meta['img_h']
 W = meta['img_w']
 
 # round-trip proof: decode the first training image straight from train.bin
-art = np.fromfile(os.path.join(HERE, "train.bin"), dtype=np.uint16, count=seq_len, offset=seq_len * 6).reshape(H, W)
+art = np.fromfile(os.path.join(HERE, "train.bin"), dtype=np.uint16, count=seq_len, offset=seq_len * 2).reshape(H, W)
 print("\nfirst training digit, decoded from train.bin:")
 for i, row in enumerate(art):
     if i % H == 0 and i > 0:
