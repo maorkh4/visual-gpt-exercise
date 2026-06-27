@@ -1,15 +1,15 @@
 import pickle, os
-import sys
+import time
 import numpy as np, torch
 from model import GPTConfig, GPT          # model.py is in this folder -- the SAME transformer, unchanged
 from sample_image import generate
 
 # hyperparameters
 batch_size = 64
-max_iters = 800
-eval_interval = 200
-eval_iters = 100
-learning_rate = 0.1
+max_iters = 1500
+eval_interval = 150
+eval_iters = 60
+learning_rate = 3e-4
 
 HERE = os.path.dirname(__file__)
 data_dir = os.path.join(HERE, 'data/mnist')
@@ -22,17 +22,22 @@ vocab_size = meta['vocab_size']
 train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
 val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
 
+# fold each flat stream into (num_images, seq_len) so a row is one whole image
+train_images = np.asarray(train_data).reshape(-1, seq_len)
+val_images = np.asarray(val_data).reshape(-1, seq_len)
+
 # meta.pkl gives vocab_size and seq_len
 block_size = seq_len - 1                  # predict pixel t+1 from pixels 0..t
 model = GPT(GPTConfig(block_size=block_size, vocab_size=vocab_size,
                       n_layer=4, n_head=4, n_embd=128, dropout=0.0, bias=False))
 # ... optimizer + training loop: same shape as your char-GPT ...
 
-def get_batch(split):  
-    data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) // seq_len, (batch_size,)) * seq_len
-    x = torch.stack([torch.from_numpy(data[i:i+block_size].astype(np.int64)) for i in ix])
-    y = torch.stack([torch.from_numpy(data[i+1:i+block_size+1].astype(np.int64)) for i in ix])
+def get_batch(split):
+    images = train_images if split == 'train' else val_images
+    ix = torch.randint(len(images), (batch_size,))
+    batch = torch.from_numpy(images[ix].astype(np.int64))   # (batch_size, seq_len)
+    x = batch[:, :-1].contiguous()
+    y = batch[:, 1:].contiguous()
     return x, y
 
 @torch.no_grad()
@@ -51,6 +56,7 @@ def estimate_loss():
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
+train_start = time.perf_counter()
 for iter in range(max_iters):
 
     # every once in a while evaluate the loss on train and val sets
@@ -67,5 +73,17 @@ for iter in range(max_iters):
     loss.backward()
     optimizer.step()
 
+train_secs = time.perf_counter() - train_start
+print(f"training: {int(train_secs) // 60:02d}:{int(train_secs) % 60:02d} total over {max_iters} iters")
+
 # generate from the model
-generate(model=model, img_h=meta['img_h'], img_w=meta['img_w'])
+n_samples = 10
+sample_secs = []
+for i in range(n_samples):
+    print(" " * (meta['img_w'] * 2))
+    t0 = time.perf_counter()
+    generate(model=model, img_h=meta['img_h'], img_w=meta['img_w'])
+    sample_secs.append(time.perf_counter() - t0)
+
+print(f"sampling: {sum(sample_secs):.1f}s total over {n_samples} samples "
+      f"({sum(sample_secs) / n_samples:.2f}s avg/sample)")
