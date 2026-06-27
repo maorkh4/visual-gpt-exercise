@@ -1,4 +1,5 @@
 import pickle, os
+import sys
 import numpy as np, torch
 from model import GPTConfig, GPT          # model.py is in this folder -- the SAME transformer, unchanged
 from sample_image import generate
@@ -29,7 +30,7 @@ model = GPT(GPTConfig(block_size=block_size, vocab_size=vocab_size,
 
 def get_batch(split):  
     data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - block_size, (batch_size,))
+    ix = torch.randint(len(data) // seq_len, (batch_size,)) * seq_len
     x = torch.stack([torch.from_numpy(data[i:i+block_size].astype(np.int64)) for i in ix])
     y = torch.stack([torch.from_numpy(data[i+1:i+block_size+1].astype(np.int64)) for i in ix])
     return x, y
