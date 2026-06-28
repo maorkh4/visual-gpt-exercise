@@ -32,6 +32,13 @@ def save_png(art, path, scale=8):
         f.write(png)
 
 
+def save_txt(art, path):
+    """Write an (img_h, img_w) tensor of 0/1 pixels as a ##/.. text file."""
+    lines = ["".join("##" if int(v) else ".." for v in row) for row in art]
+    with open(path, 'w') as f:
+        f.write("\n".join(lines))
+
+
 if __name__ == '__main__':
     model_checkpoint = torch.load(os.path.join(HERE, 'ckpt.pt'), map_location='cpu')
     model = GPT(GPTConfig(**model_checkpoint['model_args']))
@@ -43,3 +50,4 @@ if __name__ == '__main__':
     arts = generate_samples(model=model, img_h=meta['img_h'], img_w=meta['img_w'])
     for i, art in enumerate(arts):
         save_png(art, os.path.join(SAMPLE_DIR, f"sample_{i:02d}.png"))
+        save_txt(art, os.path.join(SAMPLE_DIR, f"sample_{i:02d}.txt"))
